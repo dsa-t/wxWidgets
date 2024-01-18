@@ -551,6 +551,27 @@ bool wxGLCanvasEGL::CreateSurface()
         return false;
     }
 
+    typedef EGLSurface (*CreatePlatformWindowSurface)(EGLDisplay display,
+                                                      EGLConfig config,
+                                                      void *native_window,
+                                                      EGLAttrib const *attrib_list);
+
+    // Try loading the appropriate EGL function on first use.
+    static CreatePlatformWindowSurface s_eglCreatePlatformWindowSurface = NULL;
+    static bool s_eglCreatePlatformWindowSurfaceInitialized = false;
+    if (!s_eglCreatePlatformWindowSurfaceInitialized)
+    {
+        s_eglCreatePlatformWindowSurfaceInitialized = true;
+
+        if (wxGLCanvasBase::IsExtensionInList(
+                eglQueryString(NULL, EGL_EXTENSIONS),
+                "EGL_EXT_platform_base"))
+        {
+            s_eglCreatePlatformWindowSurface = reinterpret_cast<CreatePlatformWindowSurface>(
+                eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT"));
+        }
+    }
+
     GdkWindow *window = GTKGetDrawingWindow();
 #ifdef GDK_WINDOWING_X11
     if (wxGTKImpl::IsX11(window))
@@ -562,8 +583,18 @@ bool wxGLCanvasEGL::CreateSurface()
         }
 
         m_xwindow = GDK_WINDOW_XID(window);
-        m_surface = eglCreatePlatformWindowSurface(m_display, *m_config,
-                                                   &m_xwindow, NULL);
+
+        if (s_eglCreatePlatformWindowSurface)
+        {
+            m_surface = s_eglCreatePlatformWindowSurface(m_display, *m_config,
+                                                         &m_xwindow, NULL);
+        }
+        else
+        {
+
+            m_surface = eglCreateWindowSurface(m_display, *m_config,
+                                               reinterpret_cast<EGLNativeWindowType>(m_xwindow), NULL);
+        }
     }
 #endif
 #ifdef GDK_WINDOWING_WAYLAND
@@ -594,8 +625,18 @@ bool wxGLCanvasEGL::CreateSurface()
         wl_surface_set_buffer_scale(m_wlSurface, scale);
         m_wlEGLWindow = wl_egl_window_create(m_wlSurface, w * scale,
                                              h * scale);
-        m_surface = eglCreatePlatformWindowSurface(m_display, *m_config,
-                                                   m_wlEGLWindow, NULL);
+
+        if (s_eglCreatePlatformWindowSurface)
+        {
+            m_surface = s_eglCreatePlatformWindowSurface(m_display, *m_config,
+                                                         m_wlEGLWindow, NULL);
+        }
+        else
+        {
+
+            m_surface = eglCreateWindowSurface(m_display, *m_config,
+                                               reinterpret_cast<EGLNativeWindowType>(m_wlEGLWindow), NULL);
+        }
 
         // We need to use "map-event" instead of "map" to ensure that the
         // widget's underlying Wayland surface has been created.
@@ -722,12 +763,12 @@ EGLConfig *wxGLCanvasEGL::InitConfig(const wxGLAttributes& dispAttrs)
     }
 
     // The runtime EGL version cannot be known until EGL has been initialized.
-    if ( eglMajor < 1 || (eglMajor == 1 && eglMinor < 5) )
+    if ( eglMajor < 1 || (eglMajor == 1 && eglMinor < 4) )
     {
         // Ignore the return value here, we cannot recover at this point.
         eglTerminate(dpy);
         wxLogError(wxString::Format(
-            "EGL version is %d.%d. EGL version 1.5 or greater is required.",
+            "EGL version is %d.%d. EGL version 1.4 or greater is required.",
             eglMajor, eglMinor));
         return NULL;
     }
