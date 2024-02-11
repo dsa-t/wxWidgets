@@ -403,7 +403,12 @@ endif(UNIX)
 
 if(CMAKE_USE_PTHREADS_INIT)
     cmake_push_check_state(RESET)
-    set(CMAKE_REQUIRED_LIBRARIES pthread)
+
+    if(NOT ANDROID)
+        # Builtin on Android
+        set(CMAKE_REQUIRED_LIBRARIES pthread)
+    endif()
+
     wx_check_cxx_source_compiles("
         void *p;
         pthread_cleanup_push(ThreadCleanupFunc, p);

@@ -318,7 +318,13 @@ if(wxUSE_INTL AND NOT wxUSE_FILE)
 endif()
 
 if(wxUSE_THREADS)
-    find_package(Threads REQUIRED)
+    if(ANDROID)
+        # Builtin on Android
+        set(CMAKE_HAVE_LIBC_PTHREAD 1)
+        set(CMAKE_USE_PTHREADS_INIT 1)
+    else()
+        find_package(Threads REQUIRED)
+    endif()
 endif()
 
 if(wxUSE_LIBLZMA)
