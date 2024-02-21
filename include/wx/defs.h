@@ -2987,7 +2987,9 @@ typedef struct _GdkAtom* GdkAtom;
     typedef struct _GdkRegion GdkRegion;
 #endif
 
-#if defined(__WXGTK3__)
+#if defined(__WXGTK4__)
+    typedef struct _GdkSurface GdkWindow;
+#elif defined(__WXGTK3__)
     typedef struct _GdkWindow GdkWindow;
     typedef struct _GdkEventSequence GdkEventSequence;
 #else

@@ -331,12 +331,16 @@ void wxChoice::SetSelection( int n )
 
 void wxChoice::SetColumns(int n)
 {
+#ifndef __WXGTK4__
     gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(m_widget), n);
+#endlf
 }
 
 int wxChoice::GetColumns() const
 {
+#ifndef __WXGTK4__
     return gtk_combo_box_get_wrap_width(GTK_COMBO_BOX(m_widget));
+#endlf
 }
 
 void wxChoice::GTKDisableEvents()

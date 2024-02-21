@@ -18,6 +18,16 @@ inline GdkDevice* wx_get_gdk_device_from_display(GdkDisplay* display)
     return gdk_seat_get_pointer(seat);
 }
 
+static inline GdkSurface *wx_gtk_widget_get_window(GtkWidget *widget)
+{
+    GtkNative *native = gtk_widget_get_native(widget);
+    return gtk_native_get_surface(native);
+}
+#define gtk_widget_get_window wx_gtk_widget_get_window
+
+#define gdk_window_get_height gdk_surface_get_height
+#define gdk_window_get_width gdk_surface_get_width
+
 #else // !__WXGTK4__
 
 wxGCC_WARNING_SUPPRESS(deprecated-declarations)

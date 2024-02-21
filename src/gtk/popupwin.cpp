@@ -24,6 +24,8 @@
 // "button_press"
 //-----------------------------------------------------------------------------
 
+#ifndef __WXGTK4__
+
 extern "C" {
 static gint gtk_popup_button_press (GtkWidget *widget, GdkEvent *gdk_event, wxPopupWindow* win )
 {
@@ -58,9 +60,13 @@ static gint gtk_popup_button_press (GtkWidget *widget, GdkEvent *gdk_event, wxPo
 }
 }
 
+#endif // __WXGTK4__
+
 //-----------------------------------------------------------------------------
 // "delete_event"
 //-----------------------------------------------------------------------------
+
+#ifndef __WXGTK4__
 
 extern "C" {
 static
@@ -72,6 +78,8 @@ bool gtk_dialog_delete_callback( GtkWidget *WXUNUSED(widget), GdkEvent *WXUNUSED
     return TRUE;
 }
 }
+
+#endif // __WXGTK4__
 
 //-----------------------------------------------------------------------------
 // wxPopupWindow
@@ -102,6 +110,43 @@ bool wxPopupWindow::Create( wxWindow *parent, int style )
     // All dialogs should really have this style
     m_windowStyle |= wxTAB_TRAVERSAL;
 
+#ifdef __WXGTK4__
+
+    m_widget = gtk_popover_new();
+    g_object_ref( m_widget );
+
+    gtk_widget_set_name( m_widget, "wxPopupWindow" );
+
+    m_wxwindow = wxPizza::New();
+    gtk_widget_show( m_wxwindow );
+
+    gtk_popover_set_has_arrow(GTK_POPOVER(m_widget), FALSE);
+    gtk_popover_set_position(GTK_POPOVER(m_widget), GTK_POS_BOTTOM);
+    gtk_popover_set_child(GTK_POPOVER(m_widget), m_wxwindow);
+
+    if (parent)
+        gtk_widget_set_parent(m_widget, parent->m_widget);
+
+    gtk_widget_set_name( m_widget, "wxPopupWindow" );
+
+    // Popup windows can be created without parent, so handle this correctly.
+    if (parent)
+    {
+        GtkRoot *toplevel = gtk_widget_get_root( parent->m_widget );
+        if (GTK_IS_WINDOW (toplevel))
+            gtk_window_set_transient_for (GTK_WINDOW (m_widget), GTK_WINDOW (toplevel));
+    }
+
+    gtk_window_set_resizable (GTK_WINDOW (m_widget), FALSE);
+
+    m_wxwindow = wxPizza::New();
+    gtk_widget_show( m_wxwindow );
+
+    if (m_parent) m_parent->AddChild( this );
+
+    PostCreation();
+
+#else
     m_widget = gtk_window_new( GTK_WINDOW_POPUP );
     g_object_ref( m_widget );
 
@@ -139,6 +184,7 @@ bool wxPopupWindow::Create( wxWindow *parent, int style )
 
     g_signal_connect (m_widget, "button_press_event",
                       G_CALLBACK (gtk_popup_button_press), this);
+#endif
 
     return true;
 }
@@ -172,7 +218,21 @@ void wxPopupWindow::DoSetSize( int x, int y, int width, int height, int sizeFlag
 
     if (m_x != old_x || m_y != old_y)
     {
+#ifdef __WXGTK4__
+        wxPoint parentPos = m_parent->GetScreenPosition();
+        std::cout << "moveto    " << x << " " << y << std::endl;
+        std::cout << "parentPos " << parentPos.x << " " << parentPos.y << std::endl;
+
+        GdkRectangle rect;
+        rect.width = rect.height = 1;
+        rect.x = x - parentPos.x;
+        rect.y = y - parentPos.y;
+
+        gtk_popover_set_pointing_to(GTK_POPOVER(m_widget), &rect);
+#else
         gtk_window_move(GTK_WINDOW(m_widget), m_x, m_y);
+#endif
+
         wxMoveEvent event(wxPoint(m_x, m_y), GetId());
         event.SetEventObject(this);
         HandleWindowEvent(event);

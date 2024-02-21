@@ -2539,13 +2539,17 @@ wxCairoContext::~wxCairoContext()
 
 void wxCairoContext::Init(cairo_t *context, bool storeInitClip)
 {
+#ifdef __WXGTK4__
+    m_fontScalingFactor = 1.0f;
+#else
 #ifdef __WXGTK3__
     // Attempt to find the system font scaling parameter (e.g. "Fonts->Scaling
     // Factor" in Gnome Tweaks, "Force font DPI" in KDE System Settings or
     // GDK_DPI_SCALE environment variable).
     GdkScreen* screen = gdk_screen_get_default();
     m_fontScalingFactor = screen ? float(gdk_screen_get_resolution(screen) / 96.0) : 1.0f;
-#endif
+#endif // __WXGTK3__
+#endif // __WXGTK4__
 
     m_context = context;
     m_initClipStored = false;
@@ -3435,6 +3439,9 @@ wxGraphicsContext * wxCairoRenderer::CreateContextFromImage(wxImage& image)
 wxGraphicsContext * wxCairoRenderer::CreateMeasuringContext()
 {
 #ifdef __WXGTK__
+    // GdkDisplay* display = gdk_display_get_default();
+    // GdkSeat * seat = gdk_display_get_default_seat (display);
+
     return CreateContextFromNativeWindow(gdk_get_default_root_window());
 #elif defined(__WXMSW__)
     ENSURE_LOADED_OR_RETURN(nullptr);
