@@ -13,8 +13,8 @@
 #include <QtGui/QPalette>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QStyle>
+#include <QScreen>
 
 wxColour wxSystemSettingsNative::GetColour(wxSystemColour index)
 {
