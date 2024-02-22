@@ -14,8 +14,8 @@
 #include <QtGui/QScreen>
 #include "wx/qt/private/converter.h"
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
-    #include <QtWidgets/QDesktopWidget>
+#if (QT_VERSION < QT_VERSION_CHECK(5, 10, 0))
+#include <QDesktopWidget>
 #endif
 
 class wxDisplayImplQt : public wxDisplayImpl
