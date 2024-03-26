@@ -884,12 +884,11 @@ bool wxQtDCImpl::DoBlit(wxCoord xdest, wxCoord ydest,
     }
     else
     {
+        QPaintDevice *dev = m_qtPainter->device();
         QImage qtSourceConverted = qtSource->toImage();
         qtSourceConverted = qtSourceConverted.convertToFormat(QImage::Format_RGB32);
 
-        m_qtPainter->drawImage( QRect( xdest, ydest, width, height ),
-                                qtSourceConverted,
-                                QRect( xsrc, ysrc, width, height ) );
+        m_qtPainter->drawImage(xdest, ydest, qtSourceConverted, xsrc, ysrc, width, height);
     }
 
     SetLogicalFunction( savedMode );
