@@ -104,7 +104,7 @@ void *wxDynamicLibrary::RawGetSymbol(wxDllType handle, const wxString& name)
 // ----------------------------------------------------------------------------
 // error handling
 // ----------------------------------------------------------------------------
-
+#include <android/log.h>
 /* static */
 void wxDynamicLibrary::ReportError(const wxString& message,
                                    const wxString& name)
@@ -119,6 +119,12 @@ void wxDynamicLibrary::ReportError(const wxString& message,
 
     if ( err.empty() )
         err = _("Unknown dynamic library error");
+    
+#ifdef __ANDROID__
+
+    const wxCharBuffer& buf = wxSafeConvertWX2MB(err);
+    __android_log_print(ANDROID_LOG_ERROR, "wxWidgets", "%s", buf.data());
+#endif
 
     wxLogError(msg + wxT(": %s"), name, err);
 }

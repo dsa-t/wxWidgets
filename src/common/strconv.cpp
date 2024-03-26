@@ -1161,7 +1161,8 @@ wxMBConvStrictUTF8::FromWChar(char *dst, size_t dstLen,
         }
         else
         {
-            wxFAIL_MSG( wxT("trying to encode undefined Unicode character") );
+            wxLogDebug(wxString::Format( wxT("trying to encode undefined Unicode character %lu"), (unsigned long) code ) );
+            wxLogDebug(wxString::Format( wxT("String %s"), out ));
             break;
         }
 

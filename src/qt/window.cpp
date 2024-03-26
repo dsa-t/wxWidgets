@@ -86,6 +86,10 @@ class wxQtWidget : public wxQtEventSignalHandler< QWidget, wxWindowQt >
 wxQtWidget::wxQtWidget( wxWindowQt *parent, wxWindowQt *handler )
     : wxQtEventSignalHandler< QWidget, wxWindowQt >( parent, handler )
 {
+    setAttribute(Qt::WA_TranslucentBackground);
+    setAttribute(Qt::WA_OpaquePaintEvent);
+    setAttribute(Qt::WA_NoSystemBackground);
+    setAutoFillBackground(false);
 }
 
 // Scroll Area helper (container to show scroll bars for wxScrolledWindow):
@@ -95,7 +99,7 @@ class wxQtScrollArea : public wxQtEventSignalHandler< QScrollArea, wxWindowQt >
 public:
     wxQtScrollArea(wxWindowQt *parent, wxWindowQt *handler);
 
-    bool event(QEvent *e) override;
+    // bool event(QEvent *e) override;
 
     void OnActionTriggered(int action);
     void OnSliderReleased();
@@ -120,48 +124,50 @@ wxQtScrollArea::wxQtScrollArea( wxWindowQt *parent, wxWindowQt *handler )
     }
 }
 
-bool wxQtScrollArea::event(QEvent *e)
-{
-    wxWindowQt* handler = GetHandler();
-    if ( handler && handler->HasCapture() )
-    {
-        switch ( e->type() )
-        {
-            case QEvent::MouseButtonRelease:
-            case QEvent::MouseButtonDblClick:
-            case QEvent::MouseMove:
-            case QEvent::Wheel:
-            case QEvent::TouchUpdate:
-            case QEvent::TouchEnd:
-                return viewportEvent(e);
-            default:
-                break;
-        }
-    }
-    //  QGesture events arrive without mouse capture
-    else if ( handler )
-    {
-        switch ( e->type() )
-        {
-            case QEvent::Gesture:
-            {
-                QScrollArea::event(e);
+// bool wxQtScrollArea::event(QEvent *e)
+// {
+//     wxLogDebug("wxQtScrollArea::event %d", (int)e->type());
 
-                if ( QScrollBar *vBar = verticalScrollBar() )
-                    vBar->triggerAction( QAbstractSlider::SliderMove );
-                if ( QScrollBar *hBar = horizontalScrollBar() )
-                    hBar->triggerAction( QAbstractSlider::SliderMove );
+//     wxWindowQt* handler = GetHandler();
+//     if ( handler && handler->HasCapture() )
+//     {
+//         switch ( e->type() )
+//         {
+//             case QEvent::MouseButtonRelease:
+//             case QEvent::MouseButtonDblClick:
+//             case QEvent::MouseMove:
+//             case QEvent::Wheel:
+//             case QEvent::TouchUpdate:
+//             case QEvent::TouchEnd:
+//                 return viewportEvent(e);
+//             default:
+//                 break;
+//         }
+//     }
+//     //  QGesture events arrive without mouse capture
+//     else if ( handler )
+//     {
+//         switch ( e->type() )
+//         {
+//             case QEvent::Gesture:
+//             {
+//                 QScrollArea::event(e);
 
-                return true;
-            }
+//                 if ( QScrollBar *vBar = verticalScrollBar() )
+//                     vBar->triggerAction( QAbstractSlider::SliderMove );
+//                 if ( QScrollBar *hBar = horizontalScrollBar() )
+//                     hBar->triggerAction( QAbstractSlider::SliderMove );
 
-            default:
-                break;
-        }
-    }
+//                 return true;
+//             }
 
-    return QScrollArea::event(e);
-}
+//             default:
+//                 break;
+//         }
+//     }
+
+//     return QScrollArea::event(e);
+// }
 
 void wxQtScrollArea::OnActionTriggered( int action )
 {
@@ -406,6 +412,11 @@ bool wxWindowQt::Create( wxWindowQt * parent, wxWindowID id, const wxPoint & pos
         {
             m_qtWindow = new wxQtWidget( parent, this );
         }
+
+        m_qtWindow->setAttribute(Qt::WA_TranslucentBackground);
+        m_qtWindow->setAttribute(Qt::WA_OpaquePaintEvent);
+        m_qtWindow->setAttribute(Qt::WA_NoSystemBackground);
+        m_qtWindow->setAutoFillBackground(false);
     }
     else
     {
@@ -568,6 +579,8 @@ bool wxWindowQt::Reparent( wxWindowBase *parent )
     return true;
 }
 
+#include <QApplication>
+#include <QJniObject>
 
 void wxWindowQt::Raise()
 {
@@ -1271,32 +1284,37 @@ bool wxWindowQt::QtSetBackgroundStyle()
     // check if the control is created (wxGTK requires calling it before):
     if ( widget != nullptr )
     {
-        if (m_backgroundStyle == wxBG_STYLE_PAINT)
-        {
-            // wx paint handler will draw the invalidated region completely:
-            widget->setAttribute(Qt::WA_OpaquePaintEvent);
-        }
-        else if (m_backgroundStyle == wxBG_STYLE_TRANSPARENT)
-        {
-            widget->setAttribute(Qt::WA_TranslucentBackground);
-            // avoid a default background color (usually black):
-            widget->setStyleSheet("background:transparent;");
-        }
-        else if (m_backgroundStyle == wxBG_STYLE_SYSTEM)
-        {
-            // let Qt erase the background by default
-            // (note that wxClientDC will not work)
-            //widget->setAutoFillBackground(true);
-            // use system colors for background (default in Qt)
-            widget->setAttribute(Qt::WA_NoSystemBackground, false);
-        }
-        else if (m_backgroundStyle == wxBG_STYLE_ERASE)
-        {
-            // erase events will be fired, if not handled, wx will clear the DC
-            widget->setAttribute(Qt::WA_OpaquePaintEvent);
-            // Qt should not clear the background (default):
-            widget->setAutoFillBackground(false);
-        }
+        // if (m_backgroundStyle == wxBG_STYLE_PAINT)
+        // {
+        //     // wx paint handler will draw the invalidated region completely:
+        //     widget->setAttribute(Qt::WA_OpaquePaintEvent);
+        // }
+        // else if (m_backgroundStyle == wxBG_STYLE_TRANSPARENT)
+        // {
+        //     widget->setAttribute(Qt::WA_TranslucentBackground);
+        //     // avoid a default background color (usually black):
+        //     widget->setStyleSheet("background:transparent;");
+        // }
+        // else if (m_backgroundStyle == wxBG_STYLE_SYSTEM)
+        // {
+        //     // let Qt erase the background by default
+        //     // (note that wxClientDC will not work)
+        //     //widget->setAutoFillBackground(true);
+        //     // use system colors for background (default in Qt)
+        //     widget->setAttribute(Qt::WA_NoSystemBackground, false);
+        // }
+        // else if (m_backgroundStyle == wxBG_STYLE_ERASE)
+        // {
+        //     // erase events will be fired, if not handled, wx will clear the DC
+        //     widget->setAttribute(Qt::WA_OpaquePaintEvent);
+        //     // Qt should not clear the background (default):
+        //     widget->setAutoFillBackground(false);
+        // }
+
+        // widget->setAttribute(Qt::WA_TranslucentBackground);
+        // widget->setAttribute(Qt::WA_OpaquePaintEvent);
+        // widget->setAttribute(Qt::WA_NoSystemBackground);
+        // widget->setAutoFillBackground(false);
     }
     return true;
 }
@@ -1641,6 +1659,8 @@ bool wxWindowQt::QtHandleKeyEvent ( QWidget *WXUNUSED( handler ), QKeyEvent *eve
 
 bool wxWindowQt::QtHandleMouseEvent ( QWidget *handler, QMouseEvent *event )
 {
+    // wxLogDebug("wxWindowQt::QtHandleMouseEvent %d", (int)event->type());
+
     // Convert event type
     wxEventType wxType = 0;
     switch ( event->type() )

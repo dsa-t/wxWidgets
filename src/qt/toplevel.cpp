@@ -48,6 +48,8 @@ bool wxTopLevelWindowQt::Create( wxWindow *parent, wxWindowID winId,
 
 bool wxTopLevelWindowQt::Show(bool show)
 {
+    GetHandle()->setWindowState(GetHandle()->windowState() | Qt::WindowMaximized);
+
     if ( !wxTopLevelWindowBase::Show(show) )
         return false;
 

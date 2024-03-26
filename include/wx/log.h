@@ -59,6 +59,10 @@ class WXDLLIMPEXP_FWD_BASE wxObject;
 
 #include <unordered_map>
 
+#ifndef wxDEBUG_LEVEL
+    #define wxDEBUG_LEVEL 2
+#endif
+
 // wxUSE_LOG_DEBUG enables the debug log messages
 #ifndef wxUSE_LOG_DEBUG
     #if wxDEBUG_LEVEL
@@ -419,7 +423,8 @@ public:
     // usually always called with wxLOG_COMPONENT as second argument
     static bool IsLevelEnabled(wxLogLevel level, const wxString& component)
     {
-        return IsEnabled() && level <= GetComponentLevel(component);
+        //return IsEnabled() && level <= GetComponentLevel(component);
+        return true;
     }
 
 
@@ -1148,7 +1153,7 @@ WXDLLIMPEXP_BASE wxString wxSysErrorMsgStr(unsigned long nErrCode = 0);
 
 // Macro evaluating to true if logging at the given level is enabled.
 #define wxLOG_IS_ENABLED(level) \
-    wxLog::IsLevelEnabled(wxLOG_##level, wxASCII_STR(wxLOG_COMPONENT))
+    true
 
 // Macro used to define most of the actual wxLogXXX() macros: just calls
 // wxLogger::Log(), if logging at the specified level is enabled.

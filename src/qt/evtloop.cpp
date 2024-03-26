@@ -142,9 +142,10 @@ bool wxQtEventLoopBase::Pending() const
     else
 #endif
     {
+        exit(1);
         // QUnixEventDispatcherQPA
-        extern uint qGlobalPostedEventsCount(); // from qapplication.cpp
-        return qGlobalPostedEventsCount();
+        // extern uint qGlobalPostedEventsCount(); // from qapplication.cpp
+        // return qGlobalPostedEventsCount();
     }
 #else
     return QAbstractEventDispatcher::instance()->hasPendingEvents();

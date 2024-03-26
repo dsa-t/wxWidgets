@@ -473,6 +473,8 @@ bool wxGLCanvas::Create(wxWindow *parent,
 
     m_qtWindow = new wxQtGLWidget(parent, this, format);
 
+    wxLogDebug("constructing QGestureRecognizer");
+
     // Create and register a custom pan recognizer, available to all instances of this class.
     QGestureRecognizer* pPanRecognizer = new PanGestureRecognizer();
     QGestureRecognizer::registerRecognizer(pPanRecognizer);
@@ -699,6 +701,7 @@ PanGestureRecognizer::IsValidMove(int dx, int dy)
 QGesture*
 PanGestureRecognizer::create(QObject* pTarget)
 {
+    wxLogDebug("PanGestureRecognizer::create");
    return new QPanGesture(pTarget);
 }
 
@@ -707,6 +710,8 @@ PanGestureRecognizer::create(QObject* pTarget)
 QGestureRecognizer::Result
 PanGestureRecognizer::recognize(QGesture* pGesture, QObject *pWatched, QEvent *pEvent)
 {
+    wxLogDebug("PanGestureRecognizer::recognize");
+
     wxUnusedVar(pWatched);
     QGestureRecognizer::Result result = QGestureRecognizer::Ignore;
     QPanGesture *pPan = static_cast<QPanGesture*>(pGesture);

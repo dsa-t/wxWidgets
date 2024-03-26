@@ -483,14 +483,14 @@ void wxLog::DoLogTextAtLevel(wxLogLevel level, const wxString& msg)
     // we know about debug messages (because using wxMessageOutputDebug is the
     // right thing to do in 99% of all cases and also for compatibility) but
     // anything else needs to be handled in the derived class
-    if ( level == wxLOG_Debug || level == wxLOG_Trace )
-    {
+    // if ( level == wxLOG_Debug || level == wxLOG_Trace )
+    // {
         wxMessageOutputDebug().Output(msg + wxS('\n'));
-    }
-    else
-    {
-        DoLogText(msg);
-    }
+    // }
+    // else
+    // {
+    //     DoLogText(msg);
+    // }
 }
 
 void wxLog::DoLogText(const wxString& WXUNUSED(msg))

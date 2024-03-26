@@ -986,13 +986,17 @@ static bool wxCheckWin32Permission(const wxString& path, DWORD access)
 
 bool wxIsWritable(const wxString &path)
 {
+    wxLogDebug("wxIsWritable %s", path);
 #if defined( __UNIX__ )
     // access() will take in count also symbolic links
-    return wxAccess(path.c_str(), W_OK) == 0;
+    int var=wxAccess(path.c_str(), W_OK);
+    wxLogDebug("access ret %d", var);
+    return var == 0;
 #elif defined( __WINDOWS__ )
     return wxCheckWin32Permission(path, GENERIC_WRITE);
 #else
     wxUnusedVar(path);
+    wxLogDebug("Not implemented!");
     // TODO
     return false;
 #endif

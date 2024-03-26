@@ -421,6 +421,8 @@ protected:
 
     bool gestureEvent(QGestureEvent *gesture, QEvent *event)
     {
+        // wxLogDebug("gestureEvent");
+
         if (QGesture *tah = gesture->gesture(Qt::TapAndHoldGesture))
         {
             //  Set the policy so that accepted gestures are taken by the first window that gets them
@@ -443,6 +445,8 @@ protected:
 
     void tapandholdTriggered(QTapAndHoldGesture *gesture, QEvent *event)
     {
+        wxLogDebug("tapandholdTriggered");
+
         wxWindow *win = wxWindow::QtRetrieveWindowPointer( this );
 
         if (gesture->state() == Qt::GestureFinished)
@@ -470,10 +474,14 @@ protected:
 
     void panTriggered(QPanGesture *gesture, QEvent *event)
     {
+        // wxLogDebug("panTriggered");
+
         wxWindow *win = wxWindow::QtRetrieveWindowPointer( this );
 
         if (win)
         {
+            // wxLogDebug("win ok");
+
             wxPanGestureEvent evp(win->GetId());
             QPoint pos = QCursor::pos();
             evp.SetPosition( wxQtConvertPoint( pos ) );
@@ -500,6 +508,8 @@ protected:
 
     void pinchTriggered(QPinchGesture *gesture, QEvent *event)
     {
+        // wxLogDebug("pinchTriggered");
+
         wxWindow *win = wxWindow::QtRetrieveWindowPointer( this );
         if (win)
         {
