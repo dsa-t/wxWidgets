@@ -312,6 +312,25 @@ double wxBitmap::GetScaleFactor() const
     return M_PIXDATA.devicePixelRatio();
 }
 
+void wxBitmap::SetScaleFactor(double scale)
+{
+    wxCHECK_RET( IsOk(), "invalid bitmap" );
+
+    if ( M_PIXDATA.devicePixelRatio() != scale )
+    {
+        AllocExclusive();
+
+        M_PIXDATA.setDevicePixelRatio( scale );
+    }
+}
+
+double wxBitmap::GetScaleFactor() const
+{
+    wxCHECK_MSG( IsOk(), -1, "invalid bitmap" );
+
+    return M_PIXDATA.devicePixelRatio();
+}
+
 int wxBitmap::GetHeight() const
 {
     wxCHECK_MSG( IsOk(), -1, "invalid bitmap" );
