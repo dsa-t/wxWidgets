@@ -10,7 +10,7 @@ MyGestureFrame::MyGestureFrame()
     // Create controls
     MyGesturePanel *myPanel = new MyGesturePanel(this);
     m_logText = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition,
-                    wxSize(wxDefaultCoord, 100), wxTE_MULTILINE|wxTE_READONLY|wxTE_RICH);
+                    wxSize(wxDefaultCoord, 300), wxTE_MULTILINE|wxTE_READONLY|wxTE_RICH);
 
     // Add controls to sizer
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
@@ -44,7 +44,19 @@ MyGesturePanel::MyGesturePanel(MyGestureFrame *parent)
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_PAINT, &MyGesturePanel::OnPaint, this);
 
-    if ( !EnableTouchEvents(wxTOUCH_ALL_GESTURES) )
+    if ( !EnableTouchEvents(wxTOUCH_ALL_GESTURES | wxTOUCH_PAN_ONE_FINGER) )
+    //if ( !EnableTouchEvents(wxTOUCH_HORIZONTAL_PAN_GESTURE | wxTOUCH_ZOOM_GESTURE | wxTOUCH_PAN_ONE_FINGER) )
+    // if ( !EnableTouchEvents(wxTOUCH_HORIZONTAL_PAN_GESTURE | wxTOUCH_ZOOM_GESTURE | wxTOUCH_PAN_TWO_FINGERS) )
+    // if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_TWO_FINGERS | wxTOUCH_ZOOM_GESTURE) )
+    //if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ZOOM_GESTURE) )
+    // if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ZOOM_GESTURE | wxTOUCH_ROTATE_GESTURE) )
+    //if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ROTATE_GESTURE) )
+    // if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER ) )
+    // if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ZOOM_GESTURE) )
+    //if ( !EnableTouchEvents(wxTOUCH_ZOOM_GESTURE | wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ROTATE_GESTURE) )
+    // if ( !EnableTouchEvents(wxTOUCH_FREE_PAN_GESTURE | wxTOUCH_PAN_ONE_FINGER | wxTOUCH_ROTATE_GESTURE) )
+    //if ( !EnableTouchEvents(wxTOUCH_ROTATE_GESTURE | wxTOUCH_ZOOM_GESTURE) )
+    // if ( !EnableTouchEvents(wxTOUCH_ROTATE_GESTURE | wxTOUCH_ZOOM_GESTURE) )
     {
         wxLogError("Failed to enable touch events");
 
@@ -70,8 +82,8 @@ void MyGestureFrame::OnQuit(wxCloseEvent& WXUNUSED(event))
 
 void MyGestureFrame::OnGesture(wxGestureEvent& event)
 {
-    if ( event.IsGestureStart() )
-        m_logText->Clear();
+    // if ( event.IsGestureStart() )
+    //     m_logText->Clear();
 
     event.Skip();
 }
@@ -83,7 +95,7 @@ void MyGesturePanel::OnPaint(wxPaintEvent& WXUNUSED(event))
 
     wxGCDC dc(paintDC);
     dc.SetTransformMatrix(m_affineMatrix);
-    dc.DrawBitmap(m_bitmap, wxRound(m_translateDistance.m_x), wxRound(m_translateDistance.m_y));
+    dc.DrawBitmap(m_bitmap, 0, 0);
 }
 
 void MyGesturePanel::OnPan(wxPanGestureEvent& event)
@@ -91,6 +103,8 @@ void MyGesturePanel::OnPan(wxPanGestureEvent& event)
     if ( event.IsGestureStart() )
     {
         wxLogMessage("Pan gesture started");
+
+        m_lastGesturePos = event.GetPosition();
     }
 
     const wxPoint delta = event.GetDelta();
@@ -99,21 +113,24 @@ void MyGesturePanel::OnPan(wxPanGestureEvent& event)
                  delta.x, delta.y,
                  event.GetPosition().x, event.GetPosition().y);
 
+    const wxPoint &evtPos = event.GetPosition();             
+
     // Transform the distance using the transpose of the matrix,
     // in order to translate the image to match the screen coordinates
     wxMatrix2D m;
-    m_affineMatrix.Get(&m, nullptr);
+    wxPoint2DDouble tr;
 
-    wxPoint2DDouble deltaD(m.m_11 * delta.x + m.m_12 * delta.y,
-                           m.m_21 * delta.x + m.m_22 * delta.y);
-
-    // Add it to the total translation
-    m_translateDistance += deltaD;
+    m_affineMatrix.Get(&m, &tr);
+    //tr += evtPos - m_lastGesturePos;
+    tr += event.GetDelta();
+    m_affineMatrix.Set(m, tr);
 
     if ( event.IsGestureEnd() )
     {
         wxLogMessage("Pan gesture ended");
     }
+
+    m_lastGesturePos = evtPos;
 
     Refresh();
 }
@@ -125,19 +142,31 @@ void MyGesturePanel::OnZoom(wxZoomGestureEvent& event)
         wxLogMessage("Zoom gesture started");
 
         m_lastZoomFactor = 1.0;
+        m_lastGesturePos = event.GetPosition();
     }
 
     wxLogMessage("Zoom gesture performed with zoom center at (%d, %d) and zoom Factor = %f",
         event.GetPosition().x, event.GetPosition().y, event.GetZoomFactor());
 
-    const wxPoint& zoomCenter = event.GetPosition();
+    const wxPoint &evtPos = event.GetPosition();
+    double factor = event.GetZoomFactor() / m_lastZoomFactor;
 
-    // Translate to zoom center
-    m_affineMatrix.Translate(zoomCenter.x, zoomCenter.y);
-    // Scale
-    m_affineMatrix.Scale(event.GetZoomFactor() / m_lastZoomFactor, event.GetZoomFactor() / m_lastZoomFactor);
-    // Translate back
-    m_affineMatrix.Translate(-zoomCenter.x, -zoomCenter.y);
+    wxMatrix2D m;
+    wxPoint2DDouble tr;
+    m_affineMatrix.Get(&m, &tr);
+
+    tr -= m_lastGesturePos;
+
+    wxAffineMatrix2D inv = m_affineMatrix;
+    inv.Invert();
+    tr = inv.TransformDistance(tr);
+    m_affineMatrix.Scale(factor, factor);
+    tr = m_affineMatrix.TransformDistance(tr);
+
+    tr += evtPos;
+
+    m_affineMatrix.Get(&m, nullptr);
+    m_affineMatrix.Set(m, tr);
 
     if ( event.IsGestureEnd() )
     {
@@ -145,6 +174,7 @@ void MyGesturePanel::OnZoom(wxZoomGestureEvent& event)
     }
 
     m_lastZoomFactor = event.GetZoomFactor();
+    m_lastGesturePos = evtPos;
 
     Refresh();
 }
@@ -161,14 +191,34 @@ void MyGesturePanel::OnRotate(wxRotateGestureEvent& event)
     wxLogMessage("Rotate gesture performed with rotation center at (%d, %d) and cumulative rotation angle = %f",
         event.GetPosition().x, event.GetPosition().y, event.GetRotationAngle());
 
-    const wxPoint& rotationCenter = event.GetPosition();
+    const wxPoint& evtPos = event.GetPosition();
+
+    wxMatrix2D m;
+    wxPoint2DDouble tr;
+
+    m_affineMatrix.Get(&m, &tr);
+
+    tr -= evtPos;
+
+    wxAffineMatrix2D inv = m_affineMatrix;
+    inv.Invert();
+    tr = inv.TransformDistance(tr);
+    m_affineMatrix.Rotate(event.GetRotationAngle() - m_lastRotationAngle);
+    tr = m_affineMatrix.TransformDistance(tr);
+
+    tr += evtPos;
+
+    m_affineMatrix.Get(&m, nullptr);
+    m_affineMatrix.Set(m, tr);
+
+    // m_affineMatrix.Scale(factor, factor);
 
     // Translate to rotation center
-    m_affineMatrix.Translate(rotationCenter.x, rotationCenter.y);
-    // Rotate
-    m_affineMatrix.Rotate(event.GetRotationAngle() - m_lastRotationAngle);
-    // Translate back
-    m_affineMatrix.Translate(-rotationCenter.x, -rotationCenter.y);
+    // m_affineMatrix.Translate(rotationCenter.x, rotationCenter.y);
+    // // Rotate
+    // m_affineMatrix.Rotate(event.GetRotationAngle() - m_lastRotationAngle);
+    // // Translate back
+    // m_affineMatrix.Translate(-rotationCenter.x, -rotationCenter.y);
 
     if ( event.IsGestureEnd() )
     {

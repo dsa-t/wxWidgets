@@ -45,6 +45,8 @@
 #include "wx/gtk/private/event.h"
 #include "wx/gtk/private/win_gtk.h"
 #include "wx/gtk/private/backend.h"
+#include <wx/gtk/private/list.h>
+#include <wx/gtk/private/value.h>
 #include "wx/private/textmeasure.h"
 using namespace wxGTKImpl;
 
@@ -374,6 +376,7 @@ public:
 
     GtkGesture* m_vertical_pan_gesture;
     GtkGesture* m_horizontal_pan_gesture;
+    GtkGesture* m_drag_gesture;
     GtkGesture* m_zoom_gesture;
     GtkGesture* m_rotate_gesture;
     GtkGesture* m_long_press_gesture;
@@ -390,8 +393,10 @@ typedef wxExternalField<wxWindow,
 // This is true when the gesture has just started (currently used for pan gesture only)
 static bool gs_gestureStart = false;
 
-// Last offset for the pan gesture, this is used to calculate deltas for pan gesture event
-static double gs_lastOffset = 0;
+// Last offset for pan/drag gestures, this is used to calculate deltas for pan/drag gesture events
+static wxPoint2DDouble gs_lastOffset;
+
+// static GdkEventSequence* gs_lastSequence;
 
 // Last scale provided by GTK
 static gdouble gs_lastScale = 1.0;
@@ -401,6 +406,8 @@ static gdouble gs_lastAngle = 0;
 
 // Last Zoom/Rotate gesture point
 static wxPoint gs_lastGesturePoint;
+
+static wxPoint gs_lastRotatePoint;
 
 #endif // wxGTK_HAS_GESTURES_SUPPORT
 
@@ -3235,7 +3242,9 @@ enum TrackedGestures
     two_finger_tap = 0x0001,
     press_and_tap  = 0x0002,
     horizontal_pan = 0x0004,
-    vertical_pan   = 0x0008
+    vertical_pan   = 0x0008,
+    zoom           = 0x0010,
+    free_drag      = 0x0020
 };
 
 extern "C" {
@@ -3245,7 +3254,7 @@ pan_gesture_begin_callback(GtkGesture* WXUNUSED(gesture), GdkEventSequence* WXUN
     gs_gestureStart = true;
 
     // Set it to 0, as this will be used to calculate the deltas for new pan gesture
-    gs_lastOffset = 0;
+    gs_lastOffset = wxPoint2DDouble();
 }
 }
 
@@ -3344,34 +3353,39 @@ pan_gesture_callback(GtkGesture* gesture, GtkPanDirection direction, gdouble off
     if ( !data )
         return;
 
-    // This is the difference between this and the last pan gesture event in the current sequence
-    int delta = wxRound(offset - gs_lastOffset);
+    wxPoint2DDouble offsetVector;
 
     switch ( direction )
     {
         case GTK_PAN_DIRECTION_UP:
             data->m_allowedGestures |= vertical_pan;
-            event.SetDelta(wxPoint(0, -delta));
+            offsetVector = wxPoint2DDouble(0, -offset);
             break;
 
         case GTK_PAN_DIRECTION_DOWN:
             data->m_allowedGestures |= vertical_pan;
-            event.SetDelta(wxPoint(0, delta));
+            offsetVector = wxPoint2DDouble(0, offset);
             break;
 
         case GTK_PAN_DIRECTION_RIGHT:
             data->m_allowedGestures |= horizontal_pan;
-            event.SetDelta(wxPoint(delta, 0));
+            offsetVector = wxPoint2DDouble(offset, 0);
             break;
 
         case GTK_PAN_DIRECTION_LEFT:
             data->m_allowedGestures |= horizontal_pan;
-            event.SetDelta(wxPoint(-delta, 0));
+            offsetVector = wxPoint2DDouble(-offset, 0);
             break;
     }
 
+    // This is the difference between this and the last pan gesture event in the current sequence
+    wxPoint delta(wxRound(offsetVector.m_x - gs_lastOffset.m_x),
+                  wxRound(offsetVector.m_y - gs_lastOffset.m_y));
+
+    event.SetDelta(delta);
+
     // Update gs_lastOffset
-    gs_lastOffset = offset;
+    gs_lastOffset = offsetVector;
 
     if ( gs_gestureStart )
     {
@@ -3389,34 +3403,30 @@ pan_gesture_callback(GtkGesture* gesture, GtkPanDirection direction, gdouble off
 }
 }
 
+
 extern "C" {
 static void
-zoom_gesture_callback(GtkGesture* gesture, gdouble scale, wxWindow* win)
+drag_gesture_begin_callback(GtkGesture* gesture, GdkEventSequence* sequence, wxWindowGTK* win)
 {
+    printf("drag_gesture_begin_callback\n");
+    // gs_gestureStart = true;
+
+    // Set it to 0, as this will be used to calculate the deltas for new drag gesture
+    gs_lastOffset = wxPoint2DDouble();
+
     gdouble x, y;
 
     if ( !gtk_gesture_get_bounding_box_center(gesture, &x, &y) )
     {
-        return;
+        if ( !gtk_gesture_get_point(gesture, sequence, &x, &y) )
+            return;
     }
 
-    wxZoomGestureEvent event(win->GetId());
+    wxPanGestureEvent event(win->GetId());
 
     event.SetEventObject(win);
     event.SetPosition(wxPoint(wxRound(x), wxRound(y)));
-    event.SetZoomFactor(scale);
-
-    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
-    if ( !data )
-        return;
-
-    // Cancel "Two FInger Tap Event" if scale has changed
-    if ( wxRound(scale * 1000) != wxRound(gs_lastScale * 1000) )
-    {
-        data->m_allowedGestures &= ~two_finger_tap;
-    }
-
-    gs_lastScale = scale;
+    event.SetGestureStart();
 
     // Save this point because the point obtained through gtk_gesture_get_bounding_box_center()
     // in the "end" signal is not a zoom center
@@ -3428,8 +3438,139 @@ zoom_gesture_callback(GtkGesture* gesture, gdouble scale, wxWindow* win)
 
 extern "C" {
 static void
+drag_gesture_callback(GtkGestureDrag* gesture, gdouble offset_x, gdouble offset_y, wxWindow* win)
+{
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
+    // The function that retrieves the GdkEventSequence (which will further be used to get the gesture point)
+    // should be called only when the gestrure is active
+    if ( !gtk_gesture_is_active( GTK_GESTURE( gesture ) ) )
+        return;
+
+    gdouble x, y;
+
+    if (!gtk_gesture_get_bounding_box_center(GTK_GESTURE(gesture), &x, &y))
+        return;
+
+    wxPanGestureEvent event(win->GetId());
+
+    event.SetEventObject(win);
+    event.SetPosition(wxPoint(wxRound(x), wxRound(y)));
+
+    // printf(" seq_p %d %d\n", wxRound(avgPoint.m_x), wxRound(avgPoint.m_y));
+
+    // gdouble sx = 0;
+    // gdouble sy = 0;
+    // gtk_gesture_drag_get_start_point(gesture, &sx, &sy);
+
+    // printf(" sp %d %d", (int)sx, (int)sy);
+
+    //gtk_gesture_single_get_current_sequence(GTK_GESTURE_SINGLE(gesture));
+
+    // printf(" seq %p \n", sequence);
+
+
+    // if (gs_lastSequence != sequence)
+    // {
+    //     gdouble last_x, last_y;
+
+    //     // Shift the last offset to be relative to the new anchor point
+    //     if ( gtk_gesture_get_point( GTK_GESTURE( gesture ), gs_lastSequence, &last_x, &last_y) )
+    //     {
+    //         gs_lastOffset.m_x += x - last_x;
+    //         gs_lastOffset.m_y += y - last_y;
+    //     }
+
+    //     gs_lastSequence = sequence;
+    // }
+
+    // wxPoint2DDouble offsetVector(offset_x, offset_y);
+
+    // This is the difference between this and the last pan gesture event in the current sequence
+    // wxPoint delta(wxRound(offsetVector.m_x - gs_lastOffset.m_x),
+    //               wxRound(offsetVector.m_y - gs_lastOffset.m_y));
+
+    // if ( gs_gestureStart )
+    // {
+    //     // gs_lastOffset = wxPoint2DDouble(x, y);
+
+    //     event.SetGestureStart();
+    //     gs_gestureStart = false;
+    // }
+
+    wxPoint delta(wxRound(x - gs_lastGesturePoint.x),
+                  wxRound(y - gs_lastGesturePoint.y));
+
+    event.SetDelta(delta);
+
+    // Save this point because the point obtained through gtk_gesture_get_bounding_box_center()
+    // in the "end" signal is not a zoom center
+    gs_lastGesturePoint = wxPoint(wxRound(x), wxRound(y));
+
+    // data->m_allowedGestures |= free_drag;
+
+    // Update gs_lastOffset
+    // gs_lastOffset = avgPoint;
+
+    // Cancel press and tap gesture if it is not active during "pan" signal.
+    // if( !(data->m_activeGestures & press_and_tap) )
+    // {
+    //     data->m_allowedGestures &= ~press_and_tap;
+    // }
+
+    if( !(data->m_activeGestures & two_finger_tap) )
+    {
+        data->m_allowedGestures &= ~two_finger_tap;
+    }
+
+    win->GTKProcessEvent(event);
+}
+}
+
+extern "C" {
+static void
+drag_gesture_end_callback(GtkGesture* gesture, GdkEventSequence* sequence, wxWindow* win)
+{
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
+    // Do not process drag, if there was no "drag" signal for it.
+    // if ( !(data->m_allowedGestures & free_drag) )
+    //     return;
+
+    // gdouble x, y;
+
+    // if ( !gtk_gesture_get_bounding_box_center(GTK_GESTURE( gesture), &x, &y) )
+    //     return;
+
+    // data->m_allowedGestures &= ~free_drag;
+
+    wxPanGestureEvent event(win->GetId());
+
+    event.SetEventObject(win);
+    event.SetPosition(gs_lastGesturePoint);
+    event.SetGestureEnd();
+
+    win->GTKProcessEvent(event);
+}
+}
+
+extern "C" {
+static void
 zoom_gesture_begin_callback(GtkGesture* gesture, GdkEventSequence* WXUNUSED(sequence), wxWindowGTK* win)
 {
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
+    // if ( !(data->m_allowedGestures & zoom) )
+    //     return;
+
+    data->m_activeGestures |= zoom;
+
     gdouble x, y;
 
     if ( !gtk_gesture_get_bounding_box_center(gesture, &x, &y) )
@@ -3455,8 +3596,57 @@ zoom_gesture_begin_callback(GtkGesture* gesture, GdkEventSequence* WXUNUSED(sequ
 
 extern "C" {
 static void
+zoom_gesture_callback(GtkGesture* gesture, gdouble scale, wxWindow* win)
+{
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
+    if ( !(data->m_activeGestures & zoom) )
+        return;
+
+    gdouble x, y;
+
+    if ( !gtk_gesture_get_bounding_box_center(gesture, &x, &y) )
+    {
+        return;
+    }
+
+    wxZoomGestureEvent event(win->GetId());
+
+    event.SetEventObject(win);
+    event.SetPosition(wxPoint(wxRound(x), wxRound(y)));
+    event.SetZoomFactor(scale);
+
+    // Cancel "Two FInger Tap Event" if scale has changed
+    if ( wxRound(scale * 1000) != wxRound(gs_lastScale * 1000) )
+    {
+        data->m_allowedGestures &= ~two_finger_tap;
+    }
+
+    gs_lastScale = scale;
+
+    // Save this point because the point obtained through gtk_gesture_get_bounding_box_center()
+    // in the "end" signal is not a zoom center
+    gs_lastGesturePoint = wxPoint(wxRound(x), wxRound(y));
+
+    win->GTKProcessEvent(event);
+}
+}
+
+extern "C" {
+static void
 zoom_gesture_end_callback(GtkGesture* WXUNUSED(gesture), GdkEventSequence* WXUNUSED(sequence), wxWindowGTK* win)
 {
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
+    if ( !(data->m_activeGestures & zoom) )
+        return;
+
+    data->m_activeGestures &= ~zoom;
+
     wxZoomGestureEvent event(win->GetId());
 
     event.SetEventObject(win);
@@ -3487,7 +3677,8 @@ rotate_gesture_begin_callback(GtkGesture* gesture, GdkEventSequence* WXUNUSED(se
 
     // Save this point because the point obtained through gtk_gesture_get_bounding_box_center()
     // in the "end" signal is not a rotation center
-    gs_lastGesturePoint = wxPoint(wxRound(x), wxRound(y));
+    gs_lastRotatePoint = wxPoint(wxRound(x), wxRound(y));
+    gs_lastAngle = 0.0;
 
     win->GTKProcessEvent(event);
 }
@@ -3497,12 +3688,38 @@ extern "C" {
 static void
 rotate_gesture_callback(GtkGesture* gesture, gdouble WXUNUSED(angle_delta), gdouble angle, wxWindowGTK* win)
 {
+    wxWindowGesturesData* const data = wxWindowGestures::FromObject(win);
+    if ( !data )
+        return;
+
     gdouble x, y;
 
     if ( !gtk_gesture_get_bounding_box_center(gesture, &x, &y) )
-    {
         return;
-    }
+
+    wxGtkList seqs(gtk_gesture_get_sequences(GTK_GESTURE(gesture)));
+
+    // // Compute the average point ourselves for two-finger drag
+    // wxPoint2DDouble avgPoint;
+    // int pointsCount = 0;
+
+    // if (g_list_length(seqs) == 1)
+    // {
+    //     if (!gtk_gesture_get_point(gesture, gtk_gesture_get_last_updated_sequence(gesture), &x, &y))
+    //         return;
+    // }
+    // else
+    // {
+
+    //     for (GList *p = seqs; p; p = p->next)
+    //     {
+    //         if (p->data == gtk_gesture_get_last_updated_sequence(gesture))
+    //             continue;
+
+    //         if (!gtk_gesture_get_point(gesture, (GdkEventSequence *) p->data, &x, &y))
+    //             return;
+    //     }
+    // }
 
     wxRotateGestureEvent event(win->GetId());
 
@@ -3511,12 +3728,18 @@ rotate_gesture_callback(GtkGesture* gesture, gdouble WXUNUSED(angle_delta), gdou
 
     event.SetRotationAngle(angle);
 
+    // Cancel "Two Finger Tap Event" if rotation has changed
+    if ( wxRound(angle * 1000) != wxRound(gs_lastAngle * 1000) )
+    {
+        data->m_allowedGestures &= ~two_finger_tap;
+    }
+
     // Save the angle to set it when the gesture ends.
     gs_lastAngle = angle;
 
     // Save this point because the point obtained through gtk_gesture_get_bounding_box_center()
     // in the "end" signal is not a rotation center
-    gs_lastGesturePoint = wxPoint(wxRound(x), wxRound(y));
+    gs_lastRotatePoint = wxPoint(wxRound(x), wxRound(y));
 
     win->GTKProcessEvent(event);
 }
@@ -3529,7 +3752,7 @@ rotate_gesture_end_callback(GtkGesture* WXUNUSED(gesture), GdkEventSequence* WXU
     wxRotateGestureEvent event(win->GetId());
 
     event.SetEventObject(win);
-    event.SetPosition(gs_lastGesturePoint);
+    event.SetPosition(gs_lastRotatePoint);
     event.SetGestureEnd();
     event.SetRotationAngle(gs_lastAngle);
 
@@ -3823,6 +4046,11 @@ void wxWindowGesturesData::Reinit(wxWindowGTK* win,
 
         m_vertical_pan_gesture = gtk_gesture_pan_new(widget, GTK_ORIENTATION_VERTICAL);
 
+        if ( !(eventsMask & wxTOUCH_PAN_MOUSE_TRIGGER) )
+        {
+            gtk_gesture_single_set_touch_only(GTK_GESTURE_SINGLE(m_vertical_pan_gesture), TRUE);
+        }
+
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER(m_vertical_pan_gesture), GTK_PHASE_TARGET);
 
         g_signal_connect (m_vertical_pan_gesture, "begin",
@@ -3845,10 +4073,10 @@ void wxWindowGesturesData::Reinit(wxWindowGTK* win,
 
         m_horizontal_pan_gesture = gtk_gesture_pan_new(widget, GTK_ORIENTATION_HORIZONTAL);
 
-        // Pan signals are also generated in case of "left mouse down + mouse move". This can be disabled by
-        // calling gtk_gesture_single_set_touch_only(GTK_GESTURE_SINGLE(m_horizontal_pan_gesture), TRUE) and
-        // gtk_gesture_single_set_touch_only(GTK_GESTURE_SINGLE(verticaal_pan_gesture), TRUE) which will allow
-        // pan signals only for Touch events.
+        if ( !(eventsMask & wxTOUCH_PAN_MOUSE_TRIGGER) )
+        {
+            gtk_gesture_single_set_touch_only(GTK_GESTURE_SINGLE(m_horizontal_pan_gesture), TRUE);
+        }
 
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER(m_horizontal_pan_gesture), GTK_PHASE_TARGET);
 
@@ -3865,6 +4093,43 @@ void wxWindowGesturesData::Reinit(wxWindowGTK* win,
     {
         m_horizontal_pan_gesture = nullptr;
     }
+
+    if ( eventsMask & wxTOUCH_FREE_PAN_GESTURE )
+    {
+        eventsMask &= ~wxTOUCH_FREE_PAN_GESTURE;
+
+        guint nPoints = (eventsMask & wxTOUCH_PAN_ONE_FINGER) ? 1 : 2;
+
+        m_drag_gesture = GTK_GESTURE(g_object_new(
+                       GTK_TYPE_GESTURE_DRAG,
+                       "widget", widget,
+                       "n-points", nPoints,
+                       NULL));
+
+        if ( !(eventsMask & wxTOUCH_PAN_MOUSE_TRIGGER) )
+        {
+            gtk_gesture_single_set_touch_only(GTK_GESTURE_SINGLE(m_drag_gesture), TRUE);
+        }
+
+        gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER(m_drag_gesture), GTK_PHASE_TARGET);
+
+        g_signal_connect (m_drag_gesture, "begin",
+                          G_CALLBACK(drag_gesture_begin_callback), win);
+        g_signal_connect (m_drag_gesture, "drag-update",
+                          G_CALLBACK(drag_gesture_callback), win);
+        g_signal_connect (m_drag_gesture, "end",
+                          G_CALLBACK(drag_gesture_end_callback), win);
+        g_signal_connect (m_drag_gesture, "cancel",
+                          G_CALLBACK(drag_gesture_end_callback), win);
+    }
+    else
+    {
+        m_drag_gesture = nullptr;
+    }
+
+    eventsMask &= ~wxTOUCH_PAN_MOUSE_TRIGGER;
+    eventsMask &= ~wxTOUCH_PAN_ONE_FINGER;
+    eventsMask &= ~wxTOUCH_PAN_TWO_FINGERS;
 
     if ( eventsMask & wxTOUCH_ZOOM_GESTURE )
     {

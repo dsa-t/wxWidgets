@@ -125,12 +125,17 @@ enum
     wxTOUCH_NONE                    = 0x0000,
     wxTOUCH_VERTICAL_PAN_GESTURE    = 0x0001,
     wxTOUCH_HORIZONTAL_PAN_GESTURE  = 0x0002,
-    wxTOUCH_PAN_GESTURES            = wxTOUCH_VERTICAL_PAN_GESTURE |
-                                      wxTOUCH_HORIZONTAL_PAN_GESTURE,
-    wxTOUCH_ZOOM_GESTURE            = 0x0004,
-    wxTOUCH_ROTATE_GESTURE          = 0x0008,
-    wxTOUCH_PRESS_GESTURES          = 0x0010,
-    wxTOUCH_ALL_GESTURES            = 0x001f
+    wxTOUCH_FREE_PAN_GESTURE        = 0x0004,
+    wxTOUCH_ZOOM_GESTURE            = 0x0008,
+    wxTOUCH_ROTATE_GESTURE          = 0x0010,
+    wxTOUCH_PRESS_GESTURES          = 0x0020,
+    wxTOUCH_ALL_GESTURES            = wxTOUCH_FREE_PAN_GESTURE     | wxTOUCH_ZOOM_GESTURE
+                                    | wxTOUCH_ROTATE_GESTURE       | wxTOUCH_PRESS_GESTURES,
+
+    wxTOUCH_PAN_MOUSE_TRIGGER       = 0x0100,
+    wxTOUCH_PAN_ONE_FINGER          = 0x0200,
+    wxTOUCH_PAN_TWO_FINGERS         = 0x0400,
+    wxTOUCH_PAN_GUTTER              = 0x0800,
 };
 
 // flags for SendSizeEvent()
