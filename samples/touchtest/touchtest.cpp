@@ -145,6 +145,10 @@ void MyFrame::OnSize(wxSizeEvent& event)
 {
     wxSize size = GetClientSize();
     m_Bitmap = wxBitmap(size.x, size.y, 24);
+
+    wxMemoryDC dc(m_Bitmap);
+    dc.SetBackground(*wxWHITE_BRUSH);
+    dc.Clear();
 }
 
 int MyFrame::FindIndexOfTouchId(const wxTouchSequenceId& id)
