@@ -365,12 +365,82 @@ protected:
 
     virtual bool event(QEvent *event) override
     {
-        if (event->type() == QEvent::Gesture)
+        switch (event->type())
+        {
+            case QEvent::Gesture:
+                return gestureEvent(static_cast<QGestureEvent*>(event), event);
+
+            case QEvent::TouchBegin:
+            case QEvent::TouchUpdate:
+            case QEvent::TouchCancel:
+            case QEvent::TouchEnd:
+                return touchEvent(static_cast<QTouchEvent*>(event), event);
+        }
+
+
+        /*if (event->type() == QEvent::Gesture)
         {
             return gestureEvent(static_cast<QGestureEvent*>(event), event);
         }
+        else if (event->type() == QEvent::TouchBegin
+              || event->type() == QEvent::TouchUpdate
+              || event->type() == QEvent::TouchCancel
+              || event->type() == QEvent::TouchEnd)
+        {
+            return touchEvent(static_cast<QTouchEvent*>(event), event);
+        }*/
 
         return Widget::event(event);
+    }
+
+    bool touchEvent(QTouchEvent *touch, QEvent *event) {
+        wxWindow* win = wxWindow::QtRetrieveWindowPointer(this);
+        //wxEventType wxtype = wxEVT_NULL;
+
+        std::cout << "touch event " << event->type() << std::endl;
+
+        /*switch (event->type())
+        {
+            case QEvent::TouchBegin:  wxtype = wxEVT_TOUCH_BEGIN;  break;
+            case QEvent::TouchUpdate: wxtype = wxEVT_TOUCH_MOVE;   break;
+            case QEvent::TouchCancel: wxtype = wxEVT_TOUCH_CANCEL; break;
+            case QEvent::TouchEnd:    wxtype = wxEVT_TOUCH_END;    break;
+            default: wxFAIL;
+        }*/
+
+        int primaryId = -1;
+        if (touch->touchPoints().size() > 0)
+        {
+            primaryId = touch->touchPoints().first().id();
+        }
+
+        for (const QTouchEvent::TouchPoint& tp : touch->touchPoints())
+        {
+            wxEventType evtype = wxEVT_NULL;
+
+            switch (tp.state())
+            {
+            case Qt::TouchPointPressed:  evtype = wxEVT_TOUCH_BEGIN;  break;
+            case Qt::TouchPointMoved:    evtype = wxEVT_TOUCH_MOVE;   break;
+            case Qt::TouchPointReleased: evtype = wxEVT_TOUCH_END;    break;
+            default: continue;
+            }
+
+            {
+                wxMultiTouchEvent evt(win->GetId(), evtype);
+
+                //evt.SetEventObject(win);
+                evt.SetPosition(wxQtConvertPoint(tp.pos().toPoint()));
+                evt.SetSequenceIdId(wxTouchSequenceId(wxUIntToPtr((unsigned)tp.id())));
+                evt.SetPrimary(tp.id() == primaryId);
+
+                win->ProcessWindowEvent(evt);
+            }
+        }
+
+        event->accept();
+
+        return true;
     }
 
     bool gestureEvent(QGestureEvent *gesture, QEvent *event)

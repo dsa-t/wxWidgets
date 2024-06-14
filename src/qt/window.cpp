@@ -1902,6 +1902,10 @@ bool wxWindowQt::EnableTouchEvents(int eventsMask)
         return true;
     }
 
+    if ( eventsMask & wxTOUCH_RAW_EVENTS )
+    {
+        m_qtWindow->setAttribute(Qt::WA_AcceptTouchEvents, true);
+    }
     if ( eventsMask & wxTOUCH_PRESS_GESTURES )
     {
         m_qtWindow->setAttribute(Qt::WA_AcceptTouchEvents, true);

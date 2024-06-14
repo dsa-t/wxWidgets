@@ -1217,23 +1217,23 @@ void DnDFrame::LogDragResult(wxDragResult result)
 void DnDFrame::OnLeftDown(wxMouseEvent &WXUNUSED(event) )
 {
 #if wxUSE_DRAG_AND_DROP
-    if ( !m_strText.empty() )
-    {
-        // start drag operation
-        wxTextDataObject textData(m_strText);
-        wxDropSource source(textData, this,
-                            wxDROP_ICON(dnd_copy),
-                            wxDROP_ICON(dnd_move),
-                            wxDROP_ICON(dnd_none));
+    //if ( !m_strText.empty() )
+    //{
+    //    // start drag operation
+    //    wxTextDataObject textData(m_strText);
+    //    wxDropSource source(textData, this,
+    //                        wxDROP_ICON(dnd_copy),
+    //                        wxDROP_ICON(dnd_move),
+    //                        wxDROP_ICON(dnd_none));
 
-        int flags = 0;
-        if ( m_moveByDefault )
-            flags |= wxDrag_DefaultMove;
-        else if ( m_moveAllow )
-            flags |= wxDrag_AllowMove;
+    //    int flags = 0;
+    //    if ( m_moveByDefault )
+    //        flags |= wxDrag_DefaultMove;
+    //    else if ( m_moveAllow )
+    //        flags |= wxDrag_AllowMove;
 
-        LogDragResult(source.DoDragDrop(flags));
-    }
+    //    LogDragResult(source.DoDragDrop(flags));
+    //}
 #endif // wxUSE_DRAG_AND_DROP
 }
 
