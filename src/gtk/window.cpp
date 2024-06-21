@@ -1704,18 +1704,14 @@ bool AreGTKEventsBlocked()
 
 } // anonymous namespace
 
-// all event handlers must have C linkage as they're called from GTK+ C code
-extern "C"
-{
-
 //-----------------------------------------------------------------------------
 // "button_press_event"
 //-----------------------------------------------------------------------------
 
-static gboolean
-gtk_window_button_press_callback( GtkWidget* WXUNUSED_IN_GTK3(widget),
-                                  GdkEventButton *gdk_event,
-                                  wxWindowGTK *win )
+gboolean
+wxGTKImpl::WindowButtonPressCallback(GtkWidget* WXUNUSED_IN_GTK3(widget),
+                                     GdkEventButton* gdk_event,
+                                     wxWindowGTK* win, bool synthesized)
 {
     /*
       GTK does not set the button1 mask when the event comes from the left
@@ -1810,6 +1806,7 @@ gtk_window_button_press_callback( GtkWidget* WXUNUSED_IN_GTK3(widget),
 
     wxMouseEvent event( event_type );
     InitMouseEvent( win, event, gdk_event );
+    event.m_synthesized = synthesized;
 
     AdjustEventButtonState(event);
 
@@ -1850,14 +1847,27 @@ gtk_window_button_press_callback( GtkWidget* WXUNUSED_IN_GTK3(widget),
     return FALSE;
 }
 
+extern "C"
+{
+
+static gboolean
+gtk_window_button_press_callback( GtkWidget* widget,
+                                  GdkEventButton *gdk_event,
+                                  wxWindowGTK *win )
+{
+    return wxGTKImpl::WindowButtonPressCallback(widget, gdk_event, win);
+}
+
+} // extern "C"
+
 //-----------------------------------------------------------------------------
 // "button_release_event"
 //-----------------------------------------------------------------------------
 
-static gboolean
-gtk_window_button_release_callback( GtkWidget *WXUNUSED(widget),
-                                    GdkEventButton *gdk_event,
-                                    wxWindowGTK *win )
+gboolean
+wxGTKImpl::WindowButtonReleaseCallback(GtkWidget* WXUNUSED_IN_GTK3(widget),
+                                       GdkEventButton* gdk_event,
+                                       wxWindowGTK* win, bool synthesized)
 {
     wxPROCESS_EVENT_ONCE(GdkEventButton, gdk_event);
 
@@ -1899,6 +1909,7 @@ gtk_window_button_release_callback( GtkWidget *WXUNUSED(widget),
 
     wxMouseEvent event( event_type );
     InitMouseEvent( win, event, gdk_event );
+    event.m_synthesized = synthesized;
 
     AdjustEventButtonState(event);
 
@@ -1919,6 +1930,19 @@ gtk_window_button_release_callback( GtkWidget *WXUNUSED(widget),
 
     return FALSE;
 }
+
+extern "C"
+{
+
+static gboolean
+gtk_window_button_release_callback( GtkWidget *widget,
+                                    GdkEventButton *gdk_event,
+                                    wxWindowGTK *win )
+{
+    return wxGTKImpl::WindowButtonReleaseCallback(widget, gdk_event, win);
+}
+
+} // extern "C"
 
 //-----------------------------------------------------------------------------
 
@@ -1957,10 +1981,10 @@ static void SendSetCursorEvent(wxWindowGTK* win, int x, int y)
 // "motion_notify_event"
 //-----------------------------------------------------------------------------
 
-static gboolean
-gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
-                                   GdkEventMotion *gdk_event,
-                                   wxWindowGTK *win )
+gboolean
+wxGTKImpl::WindowMotionCallback(GtkWidget* WXUNUSED_IN_GTK3(widget),
+                                       GdkEventMotion* gdk_event,
+                                       wxWindowGTK* win, bool synthesized)
 {
     wxPROCESS_EVENT_ONCE(GdkEventMotion, gdk_event);
 
@@ -1971,6 +1995,7 @@ gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
 
     wxMouseEvent event( wxEVT_MOTION );
     InitMouseEvent(win, event, gdk_event);
+    event.m_synthesized = synthesized;
 
     if ( g_captureWindow )
     {
@@ -2060,6 +2085,19 @@ gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
     return ret;
 }
 
+extern "C"
+{
+
+static gboolean
+gtk_window_motion_notify_callback( GtkWidget * widget,
+                                   GdkEventMotion *gdk_event,
+                                   wxWindowGTK *win )
+{
+    return wxGTKImpl::WindowMotionCallback(widget, gdk_event, win);
+}
+
+} // extern "C"
+
 //-----------------------------------------------------------------------------
 // "scroll_event" (mouse wheel event)
 //-----------------------------------------------------------------------------
@@ -2074,6 +2112,9 @@ static void AdjustRangeValue(GtkRange* range, double step)
         gtk_range_set_value(range, value);
     }
 }
+
+extern "C"
+{
 
 static gboolean
 scroll_event(GtkWidget* widget, GdkEventScroll* gdk_event, wxWindow* win)
@@ -3672,9 +3713,9 @@ wxEmulateLeftDownEvent(GtkWidget* widget, GdkEventTouch* gdk_event, wxWindow* wi
         return;
 
     wxEventButtonFromEventTouch(&gdk_event_button, gdk_event);
-    gtk_window_button_press_callback( widget,
-                                      &gdk_event_button,
-                                      win );
+    wxGTKImpl::WindowButtonPressCallback(widget,
+                                         &gdk_event_button,
+                                         win, true);
 }
 
 void
@@ -3686,9 +3727,9 @@ wxEmulateLeftUpEvent(GtkWidget* widget,GdkEventTouch* gdk_event, wxWindow* win)
         return;
 
     wxEventButtonFromEventTouch(&gdk_event_button, gdk_event);
-    gtk_window_button_release_callback( widget,
-                                        &gdk_event_button,
-                                        win );
+    wxGTKImpl::WindowButtonReleaseCallback(widget,
+                                           &gdk_event_button,
+                                           win, true);
 }
 
 void
@@ -3700,7 +3741,9 @@ wxEmulateMotionEvent(GtkWidget* widget, GdkEventTouch* gdk_event, wxWindow* win)
         return;
 
     wxEventMotionFromEventTouch(&gdk_event_motion, gdk_event);
-    gtk_window_motion_notify_callback(widget, &gdk_event_motion, win);
+    wxGTKImpl::WindowMotionCallback(widget,
+                                    &gdk_event_motion,
+                                    win, true);
 }
 
 } // anonymous namespace
