@@ -1865,7 +1865,7 @@ gtk_window_button_press_callback( GtkWidget* widget,
 //-----------------------------------------------------------------------------
 
 gboolean
-wxGTKImpl::WindowButtonReleaseCallback(GtkWidget* WXUNUSED_IN_GTK3(widget),
+wxGTKImpl::WindowButtonReleaseCallback(GtkWidget* WXUNUSED(widget),
                                        GdkEventButton* gdk_event,
                                        wxWindowGTK* win, bool synthesized)
 {
@@ -1982,7 +1982,7 @@ static void SendSetCursorEvent(wxWindowGTK* win, int x, int y)
 //-----------------------------------------------------------------------------
 
 gboolean
-wxGTKImpl::WindowMotionCallback(GtkWidget* WXUNUSED_IN_GTK3(widget),
+wxGTKImpl::WindowMotionCallback(GtkWidget* WXUNUSED(widget),
                                        GdkEventMotion* gdk_event,
                                        wxWindowGTK* win, bool synthesized)
 {
