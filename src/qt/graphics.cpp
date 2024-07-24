@@ -19,6 +19,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPicture>
+#include <QWidget>
 
 #ifndef WX_PRECOMP
     #include "wx/bitmap.h"

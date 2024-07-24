@@ -460,7 +460,7 @@ bool wxGLCanvas::Create(wxWindow *parent,
     if (!ParseAttribList(attribList, dispAttrs, &ctxAttrs))
         return false;
 
-    QGLFormat format;
+    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     if (!wxGLCanvas::ConvertWXAttrsToQtGL(dispAttrs, ctxAttrs, format))
         return false;
 
@@ -472,8 +472,6 @@ bool wxGLCanvas::Create(wxWindow *parent,
     }
 
     m_qtWindow = new wxQtGLWidget(parent, this, format);
-
-    wxLogDebug("constructing QGestureRecognizer");
 
     // Create and register a custom pan recognizer, available to all instances of this class.
     QGestureRecognizer* pPanRecognizer = new PanGestureRecognizer();
@@ -489,7 +487,7 @@ bool wxGLCanvas::Create(wxWindow *parent,
 
 bool wxGLCanvas::SwapBuffers()
 {
-    static_cast<QGLWidget *>(m_qtWindow)->swapBuffers();
+    // Not possible
     return true;
 }
 
@@ -505,10 +503,9 @@ bool wxGLCanvas::ConvertWXAttrsToQtGL(const wxGLAttributes &wxGLAttrs, const wxG
     const int *ctxattrs = wxCtxAttrs.GetGLAttrs();
 
     // set default parameters to false
-    format.setDoubleBuffer(false);
-    format.setDepth(false);
-    format.setAlpha(false);
-    format.setStencil(false);
+    format.setDepthBufferSize(0);
+    format.setAlphaBufferSize(0);
+    format.setStencilBufferSize(0);
 
     for (int arg = 0; glattrs && glattrs[arg] != 0; arg++)
     {
@@ -534,7 +531,9 @@ bool wxGLCanvas::ConvertWXAttrsToQtGL(const wxGLAttributes &wxGLAttrs, const wxG
                 break;
 
             case WX_GL_DOUBLEBUFFER:
-                format.setDoubleBuffer(true);
+                // Since QOpenGLWidget copies the framebuffer data to a
+                // texture, we already have tear-free behaviour.
+                // Using SwapBehavior::DoubleBuffer just increases latency.
                 isBoolAttr = true;
                 break;
 
@@ -664,11 +663,11 @@ bool wxGLCanvasBase::IsDisplaySupported(const int *attribList)
     if (!ParseAttribList(attribList, dispAttrs, &ctxAttrs))
         return false;
 
-    QGLFormat format;
+    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     if (!wxGLCanvas::ConvertWXAttrsToQtGL(dispAttrs, ctxAttrs, format))
         return false;
 
-    return QGLWidget(format).isValid();
+    return true;
 }
 
 // ----------------------------------------------------------------------------
@@ -701,7 +700,6 @@ PanGestureRecognizer::IsValidMove(int dx, int dy)
 QGesture*
 PanGestureRecognizer::create(QObject* pTarget)
 {
-    wxLogDebug("PanGestureRecognizer::create");
    return new QPanGesture(pTarget);
 }
 
@@ -710,8 +708,6 @@ PanGestureRecognizer::create(QObject* pTarget)
 QGestureRecognizer::Result
 PanGestureRecognizer::recognize(QGesture* pGesture, QObject *pWatched, QEvent *pEvent)
 {
-    wxLogDebug("PanGestureRecognizer::recognize");
-
     wxUnusedVar(pWatched);
     QGestureRecognizer::Result result = QGestureRecognizer::Ignore;
     QPanGesture *pPan = static_cast<QPanGesture*>(pGesture);
