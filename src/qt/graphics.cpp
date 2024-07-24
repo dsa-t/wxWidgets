@@ -14,7 +14,7 @@
 #if wxUSE_GRAPHICS_CONTEXT
 
 #include <QApplication>
-#include <QDesktopWidget>
+
 #include <QBitmap>
 #include <QPainter>
 #include <QPainterPath>
