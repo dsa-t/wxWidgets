@@ -126,11 +126,18 @@ if(UNIX AND NOT APPLE AND NOT WIN32 AND (WXX11 OR WXGTK2 OR (WXGTK AND wxHAVE_GD
 endif()
 
 if(WXQT)
-    set(QT_COMPONENTS Core Widgets Gui OpenGL OpenGLWidgets)
+    set(QT_COMPONENTS Core Widgets Gui OpenGL OpenGLWidgets Test)
 
     find_package(Qt6 COMPONENTS ${QT_COMPONENTS})
     if (Qt6_FOUND)
         set(QT_MAJOR_VERSION 6)
+
+        find_package(PkgConfig REQUIRED)
+
+        pkg_check_modules (GLIB2 REQUIRED glib-2.0)
+
+        list(APPEND wxTOOLKIT_INCLUDE_DIRS ${GLIB2_INCLUDE_DIRS})
+        list(APPEND wxTOOLKIT_LIBRARIES ${GLIB_LIBRARIES})
     else()
         set(QT_COMPONENTS Core Widgets Gui OpenGL Test)
 
