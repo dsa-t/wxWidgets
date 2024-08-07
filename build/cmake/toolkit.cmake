@@ -126,7 +126,7 @@ if(UNIX AND NOT APPLE AND NOT WIN32 AND (WXX11 OR WXGTK2 OR (WXGTK AND wxHAVE_GD
 endif()
 
 if(WXQT)
-    set(QT_COMPONENTS Core Widgets Gui OpenGL OpenGLWidgets Test)
+    set(QT_COMPONENTS Core Widgets Gui OpenGL OpenGLWidgets)
 
     find_package(Qt6 COMPONENTS ${QT_COMPONENTS})
     if (Qt6_FOUND)
