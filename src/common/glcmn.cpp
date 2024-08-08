@@ -83,6 +83,7 @@ bool wxGLCanvasBase::SetCurrent(const wxGLContext& context) const
     return context.SetCurrent(*static_cast<const wxGLCanvas *>(this));
 }
 
+#if wxUSE_GLAPI
 bool wxGLCanvasBase::SetColour(const wxString& colour)
 {
     wxColour col = wxTheColourDatabase->Find(colour);
@@ -114,6 +115,7 @@ bool wxGLCanvasBase::SetColour(const wxString& colour)
 #endif
     return true;
 }
+#endif // wxUSE_GLAPI
 
 wxGLCanvasBase::~wxGLCanvasBase()
 {
@@ -350,6 +352,8 @@ bool wxGLCanvasBase::ParseAttribList(const int *attribList,
 // compatibility layer for OpenGL 3 and OpenGL ES
 // ============================================================================
 
+#if wxUSE_GLAPI
+
 static wxGLAPI s_glAPI;
 
 #if wxUSE_OPENGL_EMULATION
@@ -573,6 +577,8 @@ void wxGLAPI::glEnd()
     ::glEnd();
 #endif
 }
+
+#endif // wxUSE_GLAPI
 
 #endif // wxUSE_GLCANVAS
 

@@ -241,9 +241,11 @@ public:
     // miscellaneous helper functions
     // ------------------------------
 
+#if wxUSE_GLAPI
     // call glcolor() for the colour with the given name, return false if
     // colour not found
     bool SetColour(const wxString& colour);
+#endif
 
     // return true if the extension with given name is supported
     //
@@ -342,6 +344,8 @@ private:
     #define wxUSE_OPENGL_EMULATION 0
 #endif
 
+#if wxUSE_GLAPI
+
 class WXDLLIMPEXP_GL wxGLAPI : public wxObject
 {
 public:
@@ -358,6 +362,8 @@ public:
     static void glColor3f(GLfloat r, GLfloat g, GLfloat b);
     static void glEnd();
 };
+
+#endif // wxUSE_GLAPI
 
 #endif // wxUSE_GLCANVAS
 
