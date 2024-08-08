@@ -446,7 +446,7 @@ if(wxUSE_GUI)
     endif()
 
     # extra dependencies
-    if(wxUSE_OPENGL)
+    if(wxUSE_OPENGL AND NOT ANDROID)
         if(WXOSX_IPHONE)
             set(OPENGL_FOUND TRUE)
             set(OPENGL_LIBRARIES "-framework OpenGLES" "-framework QuartzCore" "-framework GLKit")
