@@ -8,8 +8,6 @@
 #ifndef _WX_GLCANVAS_H_
 #define _WX_GLCANVAS_H_
 
-#include <GL/gl.h>
-
 class QOpenGLWidget;
 class QOpenGLContext;
 class QSurfaceFormat;
