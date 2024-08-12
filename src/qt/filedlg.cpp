@@ -27,6 +27,10 @@ public:
                     const wxString& defaultFile, const wxString& wildCard, long style )
         : wxQtEventSignalHandler<QFileDialog,wxDialog>(parent, handler)
     {
+#ifdef __ANDROID__
+        // Native Android dialog crashes in some cases
+        setOption(QFileDialog::DontUseNativeDialog, true);
+#endif
         setLabelText(QFileDialog::LookIn, wxQtConvertString(message));
         setDirectory(wxQtConvertString(defaultDir));
         selectFile(wxQtConvertString(defaultFile));
