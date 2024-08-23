@@ -87,8 +87,7 @@ bool wxInfoBarGeneric::Create(wxWindow *parent, wxWindowID winid)
     //     and being preceded by a spacer
     wxSizer * const sizer = new wxBoxSizer(wxHORIZONTAL);
     sizer->Add(m_icon, wxSizerFlags().Centre().Border());
-    sizer->Add(m_text, wxSizerFlags().Centre());
-    sizer->AddStretchSpacer();
+    sizer->Add(m_text, wxSizerFlags().Centre().Proportion(1));
     sizer->Add(m_button, wxSizerFlags().Centre().Border());
     SetSizer(sizer);
 
@@ -233,7 +232,16 @@ void wxInfoBarGeneric::ShowMessage(const wxString& msg, int flags)
     // notice the use of EscapeMnemonics() to ensure that "&" come through
     // correctly
     m_text->SetLabel(wxControl::EscapeMnemonics(msg));
-    m_text->Wrap( GetClientSize().GetWidth() );
+    
+    int width = GetClientSize().GetWidth();
+
+    if ( m_icon )
+        width -= m_icon->GetBestSize().y + wxSizerFlags::GetDefaultBorder() * 2;
+
+    if ( m_button )
+        width -= m_button->GetBestSize().y + wxSizerFlags::GetDefaultBorder() * 2;
+
+    m_text->Wrap(width);
 
     // then show this entire window if not done yet
     if ( !IsShown() )
