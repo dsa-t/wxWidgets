@@ -23,6 +23,7 @@ public:
     {
         // For compatibility with wxMSW and wxGTK3 ports.
         setAlignment( Qt::AlignCenter );
+        setScaledContents(true);
     }
 };
 
