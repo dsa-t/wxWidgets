@@ -83,7 +83,7 @@ void wxMenuItem::QtCreateAction(wxMenu* parentMenu)
 
     if ( m_bitmap.IsOk() && m_kind == wxITEM_NORMAL )
     {
-        m_qtAction->setIcon( QIcon(*GetBitmapFromBundle(m_bitmap).GetHandle()) );
+        m_qtAction->setIcon(QIcon(*m_bitmap.GetBitmap(m_bitmap.GetPreferredBitmapSizeAtScale(wxDisplay().GetScaleFactor())).GetHandle()));
     }
 
 #if wxUSE_ACCEL
