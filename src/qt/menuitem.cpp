@@ -11,6 +11,7 @@
 #include "wx/menuitem.h"
 #include "wx/menu.h"
 #include "wx/bitmap.h"
+#include "wx/display.h"
 #include "wx/qt/private/utils.h"
 #include "wx/qt/private/converter.h"
 #include "wx/qt/private/winevent.h"
